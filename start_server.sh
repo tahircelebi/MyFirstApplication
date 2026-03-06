@@ -11,7 +11,7 @@ if [[ -f "$PID_FILE" ]]; then
   OLD_PID="$(cat "$PID_FILE")"
   if kill -0 "$OLD_PID" 2>/dev/null; then
     echo "Server already running (PID $OLD_PID)"
-    echo "URL: http://localhost:8080/welcome"
+    echo "URL: http://localhost:8080/login"
     exit 0
   else
     rm -f "$PID_FILE"
@@ -23,9 +23,9 @@ NEW_PID=$!
 echo "$NEW_PID" > "$PID_FILE"
 
 sleep 4
-if curl -fsS http://localhost:8080/welcome >/dev/null 2>&1; then
+if curl -fsS http://localhost:8080/login >/dev/null 2>&1; then
   echo "Server started (PID $NEW_PID)"
-  echo "URL: http://localhost:8080/welcome"
+  echo "URL: http://localhost:8080/login"
   exit 0
 fi
 
