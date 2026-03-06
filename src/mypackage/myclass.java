@@ -10,9 +10,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class myclass {
-    private static final String USERNAME = "tahir";
-    private static final String PASSWORD = "1234";
-
     public static void main(String... args) throws Exception {
         Main main = new Main();
         main.configure().addRoutesBuilder(new LoginRoutes());
@@ -26,6 +23,7 @@ public class myclass {
     static class LoginRoutes extends RouteBuilder {
         @Override
         public void configure() {
+            // Redirect root path to the login page.
             from("jetty:http://0.0.0.0:8080/?httpMethodRestrict=GET")
                     .routeId("root-redirect")
                     .removeHeaders("*")
@@ -33,18 +31,21 @@ public class myclass {
                     .setHeader("Location", constant("/welcome"))
                     .setBody(constant(""));
 
+            // Render login page on /welcome.
             from("jetty:http://0.0.0.0:8080/welcome?httpMethodRestrict=GET")
                     .routeId("welcome-page")
                     .removeHeaders("*")
                     .setHeader(Exchange.CONTENT_TYPE, constant("text/html; charset=UTF-8"))
                     .process(exchange -> exchange.getMessage().setBody(renderLoginPage()));
 
+            // Support trailing-slash variant.
             from("jetty:http://0.0.0.0:8080/welcome/?httpMethodRestrict=GET")
                     .routeId("welcome-page-slash")
                     .removeHeaders("*")
                     .setHeader(Exchange.CONTENT_TYPE, constant("text/html; charset=UTF-8"))
                     .process(exchange -> exchange.getMessage().setBody(renderLoginPage()));
 
+            // Handle login form submit and return either warning page or success page.
             from("jetty:http://0.0.0.0:8080/login?httpMethodRestrict=POST")
                     .routeId("login-submit")
                     .process(exchange -> {
@@ -57,9 +58,10 @@ public class myclass {
                         exchange.getMessage().removeHeaders("*");
                         exchange.getMessage().setHeader(Exchange.CONTENT_TYPE, "text/html; charset=UTF-8");
 
-                        if (USERNAME.equals(username) && PASSWORD.equals(password)) {
+                        // Authenticate only when username and password are identical.
+                        if (!username.isBlank() && username.equals(password)) {
                             exchange.getMessage().setHeader(Exchange.HTTP_RESPONSE_CODE, 200);
-                            exchange.getMessage().setBody(renderWelcomePage(username));
+                            exchange.getMessage().setBody(renderWelcomePage(formatDisplayName(username)));
                         } else {
                             exchange.getMessage().setHeader(Exchange.HTTP_RESPONSE_CODE, 401);
                             exchange.getMessage().setBody(renderLoginPage("Invalid username or password. Please try again."));
@@ -75,6 +77,7 @@ public class myclass {
     public static String renderLoginPage(String warning) {
         String warningHtml = "";
         if (warning != null && !warning.isEmpty()) {
+            // Escape warning text before embedding into HTML.
             warningHtml = "<div class=\"warning\">" + escapeHtml(warning) + "</div>";
         }
 
@@ -123,16 +126,39 @@ public class myclass {
     }
 
     private static String renderWelcomePage(String username) {
+        BannerTheme theme = pickBannerTheme(username);
         return "<!doctype html>\n"
                 + "<html lang=\"en\">\n"
                 + "<head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Welcome</title>\n"
-                + "<style>body{margin:0;font-family:Segoe UI,Arial,sans-serif;min-height:100vh;display:grid;place-items:center;background:linear-gradient(145deg,#fff7e0,#f7ddb5);} .box{background:#fff;padding:28px 34px;border-radius:16px;box-shadow:0 16px 40px rgba(0,0,0,.13);text-align:center;} h1{margin:0 0 8px;color:#48200f;} p{margin:0;color:#6b3b24;}</style>\n"
+                + "<style>body{margin:0;font-family:Segoe UI,Arial,sans-serif;min-height:100vh;display:grid;place-items:center;background:linear-gradient(145deg,#fff7e0,#f7ddb5);} .box{width:min(92vw,460px);background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 16px 40px rgba(0,0,0,.13);text-align:center;} .banner{padding:16px 20px;background:"
+                + theme.gradient + ";color:#fff;} .banner h2{margin:0;font-size:22px;} .banner p{margin:6px 0 0;opacity:.95;} .content{padding:24px 30px;} h1{margin:0 0 8px;color:#48200f;} .msg{margin:0;color:#6b3b24;}</style>\n"
                 + "</head>\n"
-                + "<body><div class=\"box\"><h1>🐅 Hello " + escapeHtml(username) + "</h1><p>Welcome to your portal.</p></div></body>\n"
+                + "<body><div class=\"box\"><div class=\"banner\"><h2>" + theme.title + "</h2><p>" + theme.icon
+                + " Personalized access</p></div><div class=\"content\"><h1>Hello " + escapeHtml(username)
+                + "</h1><p class=\"msg\">Welcome to your portal.</p></div></div></body>\n"
                 + "</html>\n";
     }
 
+    private static BannerTheme pickBannerTheme(String username) {
+        int index = Math.abs(username.toLowerCase().hashCode()) % 4;
+        return switch (index) {
+            case 0 -> new BannerTheme("linear-gradient(135deg,#1b4332,#2d6a4f)", "Forest Gate", "🌿");
+            case 1 -> new BannerTheme("linear-gradient(135deg,#003049,#669bbc)", "Ocean Deck", "🌊");
+            case 2 -> new BannerTheme("linear-gradient(135deg,#4a1942,#9d4edd)", "Neon Vault", "⚡");
+            default -> new BannerTheme("linear-gradient(135deg,#7f5539,#ddb892)", "Amber Hall", "🔥");
+        };
+    }
+
+    private static String formatDisplayName(String username) {
+        if (username == null || username.isBlank()) {
+            return "User";
+        }
+        String trimmed = username.trim();
+        return Character.toUpperCase(trimmed.charAt(0)) + trimmed.substring(1).toLowerCase();
+    }
+
     private static Map<String, String> parseFormData(String body) {
+        // Parse URL-encoded form payload like "username=a&password=b".
         Map<String, String> result = new HashMap<>();
         if (body == null || body.isEmpty()) {
             return result;
@@ -149,11 +175,15 @@ public class myclass {
     }
 
     private static String escapeHtml(String text) {
+        // Minimal escaping for reflected content.
         return text
                 .replace("&", "&amp;")
                 .replace("<", "&lt;")
                 .replace(">", "&gt;")
                 .replace("\"", "&quot;")
                 .replace("'", "&#39;");
+    }
+
+    private record BannerTheme(String gradient, String title, String icon) {
     }
 }
