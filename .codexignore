@@ -1,0 +1,16 @@
+.idea
+.git
+target
+build
+out
+*.class
+*.jar
+*.log
+node_modules
+.gradle
+.vscode
+dist
+coverage
+.DS_Store
+*.pid
+hs_err_pid*

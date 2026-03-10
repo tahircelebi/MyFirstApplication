@@ -6,6 +6,9 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.time.OffsetDateTime;
 
+/**
+ * Appends structured log lines to a single local file.
+ */
 public class FileAppLogger implements AppLogger {
     private final Path logPath;
 
@@ -41,6 +44,7 @@ public class FileAppLogger implements AppLogger {
             Files.writeString(logPath, line, StandardCharsets.UTF_8,
                     StandardOpenOption.CREATE, StandardOpenOption.APPEND);
         } catch (Exception ex) {
+            // Logging must never break request handling, so failures degrade to stderr only.
             System.err.println("Failed to write application.log: " + ex.getMessage());
         }
     }

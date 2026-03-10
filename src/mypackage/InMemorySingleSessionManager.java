@@ -3,6 +3,9 @@ package mypackage;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+/**
+ * Keeps a single active authenticated session in process memory.
+ */
 public class InMemorySingleSessionManager implements SessionManager {
     private SessionRecord activeSession;
 
@@ -30,6 +33,8 @@ public class InMemorySingleSessionManager implements SessionManager {
         }
 
         if (activeSession != null) {
+            // A user reopening the app without the original cookie can reclaim their own session,
+            // but a different username is blocked until the active user logs out.
             if (activeSession.username().equals(username)) {
                 return new LoginResult(LoginOutcome.REJOINED, activeSession, activeSession.username());
             }

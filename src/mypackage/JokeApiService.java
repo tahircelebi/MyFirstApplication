@@ -7,6 +7,9 @@ import java.net.http.HttpResponse;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Fetches a programming joke from JokeAPI and falls back to built-in text on failure.
+ */
 public class JokeApiService implements JokeService {
     private static final String JOKE_API_URL = "https://v2.jokeapi.dev/joke/Programming";
     private static final String FALLBACK_STATUS_JOKE = "I would tell you a UDP joke, but you might not get it.";
@@ -53,6 +56,7 @@ public class JokeApiService implements JokeService {
                 }
             }
         } catch (Exception ex) {
+            // The welcome page should remain usable even when the external API is unavailable.
             logger.error("JOKE_API_EXCEPTION", "exception=" + ex.getClass().getSimpleName() + " message=" + ex.getMessage());
         }
 
@@ -61,6 +65,7 @@ public class JokeApiService implements JokeService {
     }
 
     private String extractJsonString(String json, String key) {
+        // Keep parsing dependency-free for this small project; regex is enough for the narrow payload shape used here.
         String regex = "\"" + Pattern.quote(key) + "\"\\s*:\\s*\"((?:\\\\.|[^\\\\\"])*)\"";
         Matcher matcher = Pattern.compile(regex).matcher(json);
         if (!matcher.find()) {
